@@ -14,16 +14,12 @@ import {
 } from './components/ui/file-button';
 import { InputGroup } from './components/ui/input-group';
 import {
-  BirthdayIcon,
-  ChartIcon,
-  CodeIcon,
-  EnterIcon,
-  IllustrationIcon,
   UploadIcon,
 } from './icons/other-icons';
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './components/ui/button';
 import { keyframes } from '@emotion/react';
+import { FaTrash, FaChartPie, FaCode, FaPaintBrush, FaArrowRight, FaArrowUp } from 'react-icons/fa';
 
 interface PromptButtonProps {
   icon?: React.ReactElement;
@@ -205,12 +201,12 @@ export function MiddleSection() {
                     disabled={inputValue.trim() === '' || loading}
                     onClick={handleSend}
                   >
-                    <EnterIcon fontSize='2xl' />
+                    <FaArrowUp color='gray' size='1.5em' />
                   </IconButton>
                 }
               >
                 <Input
-                  placeholder='Hablemos'
+                  placeholder='Hablemos de lo que tú quieras...'
                   variant='subtle'
                   size='lg'
                   borderRadius='3xl'
@@ -273,7 +269,7 @@ export function MiddleSection() {
                     disabled={inputValue.trim() === '' || loading}
                     onClick={handleSend}
                   >
-                    <EnterIcon fontSize='2xl' />
+                    <FaArrowRight color='gray' size='1.5em' />
                   </IconButton>
                 }
               >
@@ -293,22 +289,21 @@ export function MiddleSection() {
         )}
         <HStack gap='2'>
           <PromptButton
-            icon={<IllustrationIcon color='green.500' fontSize='lg' />}
-            description='Create image'
+            icon={<FaPaintBrush color='green' size='1.2em' />}
+            description='Cambiar nombre'
           />
           <PromptButton
-            icon={<CodeIcon color='blue.500' fontSize='lg' />}
-            description='Code'
+            icon={<FaCode color='blue' size='1.2em' />}
+            description='Compartir chat'
           />
           <PromptButton
-            icon={<ChartIcon color='cyan.400' fontSize='lg' />}
-            description='Analyze data'
+            icon={<FaChartPie color='cyan' size='1.2em' />}
+            description='Archivar chat'
           />
           <PromptButton
-            icon={<BirthdayIcon color='cyan.400' fontSize='lg' />}
-            description='Surprise'
+            icon={<FaTrash color='red' size='1.2em' />}
+            description='Eliminar'
           />
-          <PromptButton description='More' />
           {!showWelcome && (
             <Button variant='ghost' colorScheme='red' onClick={handleClearHistory}>
               Limpiar chat
