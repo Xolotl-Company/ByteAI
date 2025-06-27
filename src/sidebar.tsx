@@ -17,11 +17,64 @@ import {
   SmallGPTIcon,
   UpgradeIcon,
 } from './icons/sidebar-icons';
+import React, { useEffect, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 
 import { useSidebarContext } from './sidebar-context';
 
 export function Sidebar() {
   const { sideBarVisible, toggleSidebar } = useSidebarContext();
+  const [chats, setChats] = useState<{ id: string; title: string }[]>([]);
+  const [selectedChat, setSelectedChat] = useState<string | null>(null);
+
+  // Cargar chats desde localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem('byte-chats');
+    if (stored) {
+      setChats(JSON.parse(stored));
+    }
+  }, []);
+
+  // Guardar chats en localStorage cuando cambian
+  useEffect(() => {
+    localStorage.setItem('byte-chats', JSON.stringify(chats));
+  }, [chats]);
+
+  // Crear un nuevo chat
+  const handleNewChat = () => {
+    const newId = uuidv4();
+    const newTitle = `Nuevo chat ${chats.length + 1}`;
+    const newChat = { id: newId, title: newTitle };
+    setChats([newChat, ...chats]);
+    setSelectedChat(newId);
+    // Limpiar historial del chat en localStorage para el nuevo chat
+    localStorage.setItem('byte-chat-history', JSON.stringify([]));
+    // Opcional: podrías emitir un evento global aquí
+    window.dispatchEvent(new CustomEvent('byte-chat-selected', { detail: { id: newId } }));
+  };
+
+  // Seleccionar chat
+  const handleSelectChat = (id: string) => {
+    setSelectedChat(id);
+    // Cargar historial de ese chat
+    const chatHistory = localStorage.getItem(`byte-chat-history-${id}`);
+    if (chatHistory) {
+      localStorage.setItem('byte-chat-history', chatHistory);
+    } else {
+      localStorage.setItem('byte-chat-history', JSON.stringify([]));
+    }
+    window.dispatchEvent(new CustomEvent('byte-chat-selected', { detail: { id } }));
+  };
+
+  // Guardar historial de cada chat cuando cambie el historial global
+  useEffect(() => {
+    if (selectedChat) {
+      const chatHistory = localStorage.getItem('byte-chat-history');
+      if (chatHistory) {
+        localStorage.setItem(`byte-chat-history-${selectedChat}`, chatHistory);
+      }
+    }
+  }, [selectedChat]);
 
   return (
     <Box
@@ -43,7 +96,7 @@ export function Sidebar() {
           </Tooltip>
 
           <Tooltip content='New chat' showArrow>
-            <IconButton variant='ghost'>
+            <IconButton variant='ghost' onClick={handleNewChat}>
               <NewChatIcon fontSize='2xl' color='fg.muted' />
             </IconButton>
           </Tooltip>
@@ -102,7 +155,7 @@ export function Sidebar() {
             w='100%'
             whiteSpace='nowrap'
           >
-           <Link href='#' variant='plain' _hover={{ textDecor: 'none' }}>
+            <Link href='#' variant='plain' _hover={{ textDecor: 'none' }}>
               <ExploreGPTIcon fontSize='md' />
 
               <Text fontSize='sm' fontWeight='md'>
@@ -110,6 +163,33 @@ export function Sidebar() {
               </Text>
             </Link>
           </HStack>
+
+          {/* Sección de chats */}
+          <Box mt='4'>
+            <Text fontSize='xs' color='fg.subtle' fontWeight='bold' mb='2' px='2'>
+              Chats
+            </Text>
+            <Stack gap='1' px='2'>
+              {chats.length === 0 && (
+                <Text fontSize='xs' color='fg.muted'>No hay chats aún</Text>
+              )}
+              {chats.map(chat => (
+                <Link
+                  key={chat.id}
+                  href='#'
+                  variant='plain'
+                  _hover={{ textDecor: 'none', bg: 'bg.subtle' }}
+                  bg={selectedChat === chat.id ? 'bg.subtle' : undefined}
+                  borderRadius='md'
+                  px='2'
+                  py='1'
+                  onClick={() => handleSelectChat(chat.id)}
+                >
+                  <Text fontSize='sm' truncate>{chat.title}</Text>
+                </Link>
+              ))}
+            </Stack>
+          </Box>
         </Stack>
 
         <Link
