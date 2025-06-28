@@ -1,6 +1,6 @@
 # Byte Ai
 
-Bienvenido a Byte AI 🚀 En este proyecto, construiremos una aplicación sencilla al estilo de ChatGPT utilizando Vite, React, TypeScript y Chakra UI v3 para una interfaz de usuario rápida, moderna y altamente personalizable.
+Bienvenido a Byte AI 🚀 este proyecto, es el primer asistente AI creado en mexico.
 
 ## Tech Stack
 
