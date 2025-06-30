@@ -145,10 +145,12 @@ export function MiddleSection() {
         chatsArr = [newChat];
         localStorage.setItem('byte-chats', JSON.stringify(chatsArr));
         window.dispatchEvent(new CustomEvent('byte-chat-selected', { detail: { id: newId } }));
+        window.dispatchEvent(new Event('byte-chat-title-updated'));
       } else if (!chatsArr[0].title || chatsArr[0].title.startsWith('Nuevo chat')) {
         // Si el chat existe pero tiene título genérico, actualiza el título
         chatsArr[0].title = chatHistory[0].content.slice(0, 30) + (chatHistory[0].content.length > 30 ? '...' : '');
         localStorage.setItem('byte-chats', JSON.stringify(chatsArr));
+        window.dispatchEvent(new Event('byte-chat-title-updated'));
       }
     }
   }, [chatHistory]);
@@ -192,8 +194,8 @@ export function MiddleSection() {
     let chats = localStorage.getItem('byte-chats');
     if (!chats) return;
     let chatsArr = JSON.parse(chats);
-    // Buscar el chat seleccionado (el primero en la lista es el actual)
-    const currentId = chatsArr[0]?.id;
+    // Obtener el id del chat seleccionado desde localStorage
+    const currentId = localStorage.getItem('byte-selected-chat') || chatsArr[0]?.id;
     if (!currentId) return;
     const currentChat = chatsArr.find((c: any) => c.id === currentId);
     if (!currentChat) return;
@@ -201,7 +203,7 @@ export function MiddleSection() {
     if (newTitle && newTitle.trim() !== '' && newTitle !== currentChat.title) {
       const updated = chatsArr.map((c: any) => c.id === currentId ? { ...c, title: newTitle } : c);
       localStorage.setItem('byte-chats', JSON.stringify(updated));
-      window.dispatchEvent(new CustomEvent('byte-chat-selected', { detail: { id: currentId } }));
+      window.dispatchEvent(new Event('byte-chat-title-updated'));
     }
   };
 

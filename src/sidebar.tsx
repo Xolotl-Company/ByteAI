@@ -19,7 +19,6 @@ import {
 } from './icons/sidebar-icons';
 import  { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { FaBoxOpen } from 'react-icons/fa';
 
 import { useSidebarContext } from './sidebar-context';
 
@@ -48,17 +47,20 @@ export function Sidebar() {
     const newId = uuidv4();
     const newTitle = `Nuevo chat ${chats.length + 1}`;
     const newChat = { id: newId, title: newTitle };
-    setChats([newChat, ...chats]);
+    // Actualizar localStorage antes de setChats para que el useEffect de storage lo detecte
+    const updatedChats = [newChat, ...chats];
+    localStorage.setItem('byte-chats', JSON.stringify(updatedChats));
+    setChats(updatedChats);
     setSelectedChat(newId);
-    // Limpiar historial del chat en localStorage para el nuevo chat
     localStorage.setItem('byte-chat-history', JSON.stringify([]));
-    // Opcional: podrías emitir un evento global aquí
+    localStorage.setItem(`byte-chat-history-${newId}`, JSON.stringify([]));
     window.dispatchEvent(new CustomEvent('byte-chat-selected', { detail: { id: newId } }));
   };
 
   // Seleccionar chat
   const handleSelectChat = (id: string) => {
     setSelectedChat(id);
+    localStorage.setItem('byte-selected-chat', id); // <-- Guardar selección
     // Cargar historial de ese chat
     const chatHistory = localStorage.getItem(`byte-chat-history-${id}`);
     if (chatHistory) {
@@ -87,9 +89,25 @@ export function Sidebar() {
     };
     window.addEventListener('byte-chat-selected', updateChats);
     window.addEventListener('storage', updateChats);
+    window.addEventListener('byte-chat-title-updated', updateChats); // <-- Escuchar evento de título actualizado
     return () => {
       window.removeEventListener('byte-chat-selected', updateChats);
       window.removeEventListener('storage', updateChats);
+      window.removeEventListener('byte-chat-title-updated', updateChats); // <-- Limpiar listener
+    };
+  }, []);
+
+  // Escuchar cambios de título de chat y sincronizar lista
+  useEffect(() => {
+    const syncTitles = () => {
+      const stored = localStorage.getItem('byte-chats');
+      setChats(stored ? JSON.parse(stored) : []);
+    };
+    window.addEventListener('byte-chat-title-updated', syncTitles);
+    window.addEventListener('storage', syncTitles);
+    return () => {
+      window.removeEventListener('byte-chat-title-updated', syncTitles);
+      window.removeEventListener('storage', syncTitles);
     };
   }, []);
 
@@ -207,12 +225,46 @@ export function Sidebar() {
           >
             <Link href='#' variant='plain' _hover={{ textDecor: 'none' }}>
               <ExploreGPTIcon fontSize='md' />
-
               <Text fontSize='sm' fontWeight='md'>
                 Explore GPTs
               </Text>
             </Link>
           </HStack>
+
+          {/* Pestaña de chats archivados */}
+          {archivedChats.length > 0 && (
+            <Box>
+              <Text
+                fontSize='xs'
+                color='fg.subtle'
+                fontWeight='bold'
+                mt='4'
+                px='2'
+                as='button'
+                style={{ cursor: 'pointer', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}
+                onClick={() => setShowArchived(!showArchived)}
+              >
+                {showArchived ? 'Ocultar chats archivados' : 'Chats archivados'}
+              </Text>
+              {showArchived && (
+                <Stack gap='1' px='2' mt='2'>
+                  {archivedChats.map(chat => (
+                    <HStack key={chat.id} justify='space-between'>
+                      <Text fontSize='sm' truncate>{chat.title}</Text>
+                      <Text
+                        fontSize='xs'
+                        color='blue.400'
+                        style={{ cursor: 'pointer', userSelect: 'none' }}
+                        onClick={() => handleUnarchive(chat.id)}
+                      >
+                        Desarchivar
+                      </Text>
+                    </HStack>
+                  ))}
+                </Stack>
+              )}
+            </Box>
+          )}
 
           {/* Sección de chats */}
           <Box mt='4'>
@@ -239,39 +291,6 @@ export function Sidebar() {
                 </Link>
               ))}
             </Stack>
-            {archivedChats.length > 0 && (
-              <>
-                <Text
-                  fontSize='xs'
-                  color='fg.subtle'
-                  fontWeight='bold'
-                  mt='4'
-                  px='2'
-                  as='button'
-                  style={{ cursor: 'pointer', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}
-                  onClick={() => setShowArchived(!showArchived)}
-                >
-                  {showArchived ? 'Ocultar chats archivados' : 'Chats archivados'}
-                </Text>
-                {showArchived && (
-                  <Stack gap='1' px='2' mt='2'>
-                    {archivedChats.map(chat => (
-                      <HStack key={chat.id} justify='space-between'>
-                        <Text fontSize='sm' truncate>{chat.title}</Text>
-                        <Text
-                          fontSize='xs'
-                          color='blue.400'
-                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                          onClick={() => handleUnarchive(chat.id)}
-                        >
-                          Desarchivar
-                        </Text>
-                      </HStack>
-                    ))}
-                  </Stack>
-                )}
-              </>
-            )}
           </Box>
         </Stack>
 
