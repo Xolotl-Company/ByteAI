@@ -144,6 +144,18 @@ export function Sidebar() {
     }
   };
 
+  // Asegurar que siempre haya un chat seleccionado en localStorage
+  useEffect(() => {
+    if (chats.length > 0) {
+      const selected = localStorage.getItem('byte-selected-chat');
+      const exists = chats.some(c => c.id === selected);
+      if (!selected || !exists) {
+        setSelectedChat(chats[0].id);
+        localStorage.setItem('byte-selected-chat', chats[0].id);
+      }
+    }
+  }, [chats]);
+
   return (
     <Box
       bg='bg.muted'
