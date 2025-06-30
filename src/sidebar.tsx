@@ -19,6 +19,7 @@ import {
 } from './icons/sidebar-icons';
 import  { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { FaBoxOpen } from 'react-icons/fa';
 
 import { useSidebarContext } from './sidebar-context';
 
@@ -26,6 +27,8 @@ export function Sidebar() {
   const { sideBarVisible, toggleSidebar } = useSidebarContext();
   const [chats, setChats] = useState<{ id: string; title: string }[]>([]);
   const [selectedChat, setSelectedChat] = useState<string | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedChats, setArchivedChats] = useState<{ id: string; title: string }[]>([]);
 
   // Cargar chats desde localStorage
   useEffect(() => {
@@ -75,6 +78,53 @@ export function Sidebar() {
       }
     }
   }, [selectedChat]);
+
+  // Recibir cambios de chats desde MiddleSection
+  useEffect(() => {
+    const updateChats = () => {
+      const stored = localStorage.getItem('byte-chats');
+      setChats(stored ? JSON.parse(stored) : []);
+    };
+    window.addEventListener('byte-chat-selected', updateChats);
+    window.addEventListener('storage', updateChats);
+    return () => {
+      window.removeEventListener('byte-chat-selected', updateChats);
+      window.removeEventListener('storage', updateChats);
+    };
+  }, []);
+
+  // Cargar chats archivados
+  useEffect(() => {
+    const stored = localStorage.getItem('byte-archived-chats');
+    setArchivedChats(stored ? JSON.parse(stored) : []);
+  }, []);
+
+  // Actualizar chats archivados cuando se archiva/desarchiva
+  useEffect(() => {
+    const updateArchived = () => {
+      const stored = localStorage.getItem('byte-archived-chats');
+      setArchivedChats(stored ? JSON.parse(stored) : []);
+    };
+    window.addEventListener('byte-chat-selected', updateArchived);
+    window.addEventListener('storage', updateArchived);
+    return () => {
+      window.removeEventListener('byte-chat-selected', updateArchived);
+      window.removeEventListener('storage', updateArchived);
+    };
+  }, []);
+
+  // Desarchivar chat
+  const handleUnarchive = (id: string) => {
+    const archived = archivedChats.filter(c => c.id !== id);
+    const chatToRestore = archivedChats.find(c => c.id === id);
+    if (chatToRestore) {
+      setChats([chatToRestore, ...chats]);
+      localStorage.setItem('byte-chats', JSON.stringify([chatToRestore, ...chats]));
+      localStorage.setItem('byte-archived-chats', JSON.stringify(archived));
+      setArchivedChats(archived);
+      window.dispatchEvent(new CustomEvent('byte-chat-selected', { detail: { id } }));
+    }
+  };
 
   return (
     <Box
@@ -176,19 +226,52 @@ export function Sidebar() {
               {chats.map(chat => (
                 <Link
                   key={chat.id}
-                  href='#'
-                  variant='plain'
+                  href="#"
+                  variant="plain"
                   _hover={{ textDecor: 'none', bg: 'bg.subtle' }}
                   bg={selectedChat === chat.id ? 'bg.subtle' : undefined}
-                  borderRadius='md'
-                  px='2'
-                  py='1'
+                  borderRadius="md"
+                  px="2"
+                  py="1"
                   onClick={() => handleSelectChat(chat.id)}
                 >
-                  <Text fontSize='sm' truncate>{chat.title}</Text>
+                  <Text fontSize="sm" truncate>{chat.title}</Text>
                 </Link>
               ))}
             </Stack>
+            {archivedChats.length > 0 && (
+              <>
+                <Text
+                  fontSize='xs'
+                  color='fg.subtle'
+                  fontWeight='bold'
+                  mt='4'
+                  px='2'
+                  as='button'
+                  style={{ cursor: 'pointer', textAlign: 'left', width: '100%', background: 'none', border: 'none' }}
+                  onClick={() => setShowArchived(!showArchived)}
+                >
+                  {showArchived ? 'Ocultar chats archivados' : 'Chats archivados'}
+                </Text>
+                {showArchived && (
+                  <Stack gap='1' px='2' mt='2'>
+                    {archivedChats.map(chat => (
+                      <HStack key={chat.id} justify='space-between'>
+                        <Text fontSize='sm' truncate>{chat.title}</Text>
+                        <Text
+                          fontSize='xs'
+                          color='blue.400'
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                          onClick={() => handleUnarchive(chat.id)}
+                        >
+                          Desarchivar
+                        </Text>
+                      </HStack>
+                    ))}
+                  </Stack>
+                )}
+              </>
+            )}
           </Box>
         </Stack>
 

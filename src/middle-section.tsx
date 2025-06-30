@@ -19,17 +19,18 @@ import {
 import React, { useState, useEffect, useRef } from 'react';
 import { Button } from './components/ui/button';
 import { keyframes } from '@emotion/react';
-import { FaTrash, FaChartPie, FaCode, FaPaintBrush, FaArrowRight, FaArrowUp } from 'react-icons/fa';
+import { FaTrash, FaArrowRight, FaArrowUp, FaArchive, FaShareAlt, FaPencilAlt } from 'react-icons/fa';
+
 
 interface PromptButtonProps {
   icon?: React.ReactElement;
   description: string;
 }
 
-function PromptButton(props: PromptButtonProps) {
-  const { icon, description } = props;
+function PromptButton(props: PromptButtonProps & { onClick?: () => void }) {
+  const { icon, description, onClick } = props;
   return (
-    <Button variant='outline' borderRadius='full'>
+    <Button variant='outline' borderRadius='full' onClick={onClick}>
       {icon}
       <chakra.span color='fg.subtle'>{description}</chakra.span>
     </Button>
@@ -130,6 +131,28 @@ export function MiddleSection() {
     }
   }, [chatHistory]);
 
+  // Nuevo: crear chat automáticamente al primer mensaje
+  useEffect(() => {
+    if (chatHistory.length === 1 && chatHistory[0].role === 'user') {
+      // Si no hay chats, crea uno nuevo
+      let chats = localStorage.getItem('byte-chats');
+      let chatsArr = chats ? JSON.parse(chats) : [];
+      if (!chatsArr.length) {
+        const newId = crypto.randomUUID();
+        // El título será el primer mensaje del usuario (recortado)
+        const newTitle = chatHistory[0].content.slice(0, 30) + (chatHistory[0].content.length > 30 ? '...' : '');
+        const newChat = { id: newId, title: newTitle };
+        chatsArr = [newChat];
+        localStorage.setItem('byte-chats', JSON.stringify(chatsArr));
+        window.dispatchEvent(new CustomEvent('byte-chat-selected', { detail: { id: newId } }));
+      } else if (!chatsArr[0].title || chatsArr[0].title.startsWith('Nuevo chat')) {
+        // Si el chat existe pero tiene título genérico, actualiza el título
+        chatsArr[0].title = chatHistory[0].content.slice(0, 30) + (chatHistory[0].content.length > 30 ? '...' : '');
+        localStorage.setItem('byte-chats', JSON.stringify(chatsArr));
+      }
+    }
+  }, [chatHistory]);
+
   const handleSend = async () => {
     if (!inputValue.trim()) return;
     const newHistory = [
@@ -162,6 +185,67 @@ export function MiddleSection() {
       localStorage.removeItem('byte-chat-history');
       setShowWelcome(true);
     }
+  };
+
+  // Funcionalidad: Editar nombre del chat (igual que ChatGPT, usando el chat seleccionado)
+  const handleEditName = () => {
+    let chats = localStorage.getItem('byte-chats');
+    if (!chats) return;
+    let chatsArr = JSON.parse(chats);
+    // Buscar el chat seleccionado (el primero en la lista es el actual)
+    const currentId = chatsArr[0]?.id;
+    if (!currentId) return;
+    const currentChat = chatsArr.find((c: any) => c.id === currentId);
+    if (!currentChat) return;
+    const newTitle = prompt('Nuevo nombre para el chat:', currentChat.title);
+    if (newTitle && newTitle.trim() !== '' && newTitle !== currentChat.title) {
+      const updated = chatsArr.map((c: any) => c.id === currentId ? { ...c, title: newTitle } : c);
+      localStorage.setItem('byte-chats', JSON.stringify(updated));
+      window.dispatchEvent(new CustomEvent('byte-chat-selected', { detail: { id: currentId } }));
+    }
+  };
+
+  // Funcionalidad: Compartir chat (copiar historial al portapapeles)
+  const handleShare = async () => {
+    const text = chatHistory.map(m => `${m.role === 'user' ? 'Tú' : 'Byte'}: ${m.content}`).join('\n');
+    await navigator.clipboard.writeText(text);
+    alert('¡Historial copiado al portapapeles!');
+  };
+
+  // Funcionalidad: Archivar chat (mover a lista de archivados)
+  const handleArchive = () => {
+    const chats = localStorage.getItem('byte-chats');
+    if (!chats) return;
+    const chatsArr = JSON.parse(chats);
+    const currentId = chatsArr[0]?.id;
+    if (!currentId) return;
+    let archived = JSON.parse(localStorage.getItem('byte-archived-chats') || '[]');
+    const chatToArchive = chatsArr.find((c: any) => c.id === currentId);
+    if (chatToArchive) {
+      archived = [chatToArchive, ...archived];
+      localStorage.setItem('byte-archived-chats', JSON.stringify(archived));
+      const updated = chatsArr.filter((c: any) => c.id !== currentId);
+      localStorage.setItem('byte-chats', JSON.stringify(updated));
+      setChatHistory([]);
+      setShowWelcome(true);
+      window.dispatchEvent(new CustomEvent('byte-chat-selected', { detail: { id: updated[0]?.id } }));
+    }
+  };
+
+  // Funcionalidad: Eliminar chat
+  const handleDelete = () => {
+    if (!window.confirm('¿Seguro que quieres eliminar este chat?')) return;
+    const chats = localStorage.getItem('byte-chats');
+    if (!chats) return;
+    const chatsArr = JSON.parse(chats);
+    const currentId = chatsArr[0]?.id;
+    if (!currentId) return;
+    const updated = chatsArr.filter((c: any) => c.id !== currentId);
+    localStorage.setItem('byte-chats', JSON.stringify(updated));
+    localStorage.removeItem(`byte-chat-history-${currentId}`);
+    setChatHistory([]);
+    setShowWelcome(true);
+    window.dispatchEvent(new CustomEvent('byte-chat-selected', { detail: { id: updated[0]?.id } }));
   };
 
   return (
@@ -289,20 +373,24 @@ export function MiddleSection() {
         )}
         <HStack gap='2'>
           <PromptButton
-            icon={<FaPaintBrush color='green' size='1.2em' />}
-            description='Cambiar nombre'
+            icon={<FaPencilAlt color='white' size='1.2em' />}
+            description='Editar nombre'
+            onClick={handleEditName}
           />
           <PromptButton
-            icon={<FaCode color='blue' size='1.2em' />}
+            icon={<FaShareAlt color='white' size='1.2em' />}
             description='Compartir chat'
+            onClick={handleShare}
           />
           <PromptButton
-            icon={<FaChartPie color='cyan' size='1.2em' />}
+            icon={<FaArchive color='white' size='1.2em' />}
             description='Archivar chat'
+            onClick={handleArchive}
           />
           <PromptButton
             icon={<FaTrash color='red' size='1.2em' />}
             description='Eliminar'
+            onClick={handleDelete}
           />
           {!showWelcome && (
             <Button variant='ghost' colorScheme='red' onClick={handleClearHistory}>
